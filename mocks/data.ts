@@ -58,7 +58,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     type: "savings",
     currency: "AED",
     balance: 55_000.0,
-    iban: "AE460090000001976097640",
+    iban: "AE610090000001976097640", // mod-97 valid
     label: "Savings Account",
   },
 ];
@@ -80,7 +80,7 @@ export const MOCK_CONTACTS: WioContact[] = [
   {
     id: "contact_002",
     name: "Sara Al Mansouri",
-    iban: "AE460090000002345678901",
+    iban: "AE120090000002345678901", // mod-97 valid
     phone: "+971 55 345 6789",
     isFavorite: true,
     avatarInitials: "SM",
@@ -89,7 +89,7 @@ export const MOCK_CONTACTS: WioContact[] = [
   {
     id: "contact_003",
     name: "Ahmed Hassan",
-    iban: "AE070330000004567890123",
+    iban: "AE800330000004567890123", // mod-97 valid
     phone: "+971 52 456 7890",
     isFavorite: false,
     avatarInitials: "AH",
@@ -98,7 +98,7 @@ export const MOCK_CONTACTS: WioContact[] = [
   {
     id: "contact_004",
     name: "Mohammed Al Kindi",
-    iban: "AE290090000003456789012",
+    iban: "AE960090000003456789012", // mod-97 valid
     phone: "+971 56 567 8901",
     isFavorite: false,
     avatarInitials: "MK",
