@@ -120,6 +120,88 @@ Handles:
 
 ---
 
+## Phase 6 — Server-Side AI Endpoint ✅
+
+**Status:** Complete  
+**Route:** `POST /api/chat`
+
+### Architecture
+
+```
+Client (event) → POST /api/chat → [1] deterministic brain → [2] AI text enrichment → ChatResponse
+```
+
+Rule enforced in the route: **AI may only enrich reply text. It cannot change state, card data, or payment execution.**
+
+### New files
+
+| File | Purpose |
+|---|---|
+| `types/api.ts` | `AssistantAction`, `ChatRequest`, `ChatResponse` schemas |
+| `lib/model-adapter.ts` | `ModelAdapter` interface + `AnthropicAdapter` + `MockAdapter` + `createAdapter()` factory |
+| `app/api/chat/route.ts` | POST handler — validates input, runs brain, enriches text, returns structured response |
+
+### Request / response schema
+
+**POST body** (`ChatRequest`):
+```json
+{
+  "eventType": "USER_TEXT",
+  "eventPayload": { "text": "send 500 to Sara" },
+  "state": "idle",
+  "context": { "amount": null, "recipientQuery": null, ... },
+  "history": [...]
+}
+```
+
+**Response** (`ChatResponse`):
+```json
+{
+  "nextState": "got_amount",
+  "context": { ... },
+  "messages": [{ "text": "...", "card": { "type": "...", "data": {...} } }],
+  "delayMs": 800,
+  "action": "show_contact_picker",
+  "usedFallback": false,
+  "model": "mock"
+}
+```
+
+### AssistantAction values
+
+| Value | When |
+|---|---|
+| `reply_only` | Pure text, no card |
+| `ask_recipient` | Brain waiting for recipient |
+| `ask_purpose` | Purpose picker shown |
+| `show_contact_picker` | Multiple contact matches |
+| `show_add_beneficiary` | New / unknown recipient |
+| `show_summary` | Transfer confirm card |
+| `show_done` | Transfer complete |
+| `show_card` | Other card (balance, FX, etc.) |
+
+### Model adapter
+
+`createAdapter()` priority:
+1. `ANTHROPIC_API_KEY` set → `AnthropicAdapter` (claude-haiku-4-5-20251001)
+2. Key not set → `MockAdapter` (no HTTP, returns null for all enrichment slots)
+
+Set `ANTHROPIC_API_KEY` in `.env.local` (never commit) to activate live AI enrichment.
+
+### Fallback chain
+
+`AnthropicAdapter` failure → `usedFallback: true`, original brain text used  
+API route error / network failure → client runs `processSendMoney` locally, `model: "local"`
+
+### Chat page changes
+
+- `dispatchEvent` now calls `/api/chat` instead of local `processSendMoney`
+- Conversation history (last 6 turns) sent with each request for AI context
+- Local brain retained as automatic fallback on API failure
+- Dev bar now shows `model:` and `⚠ fallback` indicator
+
+---
+
 ## Phase 5 — International Transfer Tracker ✅
 
 **Status:** Complete  
@@ -178,6 +260,7 @@ npm run dev
 
 ```
 app/
+  api/chat/route.ts    AI chat server route (Phase 6)
   chat/page.tsx        Customer chat UI
   ops/page.tsx         Payment Ops Centre (Phase 4)
   tracker/page.tsx     International Transfer Tracker (Phase 5)
@@ -193,13 +276,16 @@ components/
 
 lib/
   payment-brain/       6 modules
+  model-adapter.ts     ModelAdapter interface + Anthropic/Mock impls (Phase 6)
   utils.ts
 
 mocks/
   data.ts              Full seeded dataset
   ops-data.ts          Ops Centre data (Phase 4)
 
-types/index.ts         All shared types
+types/
+  index.ts             All shared types
+  api.ts               Chat API request/response schemas (Phase 6)
 docs/
   wio-pay-spec.md
   progress.md          This file

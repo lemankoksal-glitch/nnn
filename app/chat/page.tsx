@@ -10,6 +10,7 @@ import {
   type BrainEvent,
   type BrainMessage,
 } from "@/lib/payment-brain";
+import type { ChatRequest, ChatResponse } from "@/types/api";
 import { MOCK_CONTACTS, MOCK_USER, MOCK_ACCOUNTS, MOCK_BILLS } from "@/mocks/data";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -57,6 +58,19 @@ const INITIAL_MESSAGES: UIMessage[] = [
   },
 ];
 
+// ─── Event serialisation helpers ───────────────────────────────────────────────
+
+function eventToPayload(event: BrainEvent): Record<string, string> {
+  switch (event.type) {
+    case "USER_TEXT":        return { text: event.text };
+    case "CONTACT_SELECTED": return { contactId: event.contactId };
+    case "IBAN_SUBMITTED":   return { iban: event.iban, name: event.name };
+    case "PURPOSE_SELECTED": return { purposeCode: event.purposeCode, purposeLabel: event.purposeLabel };
+    case "CONFIRM":          return {};
+    case "CANCEL":           return {};
+  }
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function ChatPage() {
@@ -64,6 +78,9 @@ export default function ChatPage() {
   const [smState, setSmState] = useState<SendMoneyState>("idle");
   const [smContext, setSmContext] = useState<SendMoneyContext>(EMPTY_CONTEXT);
   const [isTyping, setIsTyping] = useState(false);
+  const [lastModel, setLastModel] = useState<string>("—");
+  const [lastFallback, setLastFallback] = useState(false);
+  const [history, setHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom on new messages / typing
@@ -83,18 +100,57 @@ export default function ChatPage() {
     return msgs.map((m) => ({ ...m, isCardActive: false }));
   }
 
-  // ── Core: dispatch event to brain ─────────────────────────────────────────────
+  // ── Core: dispatch event via server API (with local brain fallback) ───────────
   const dispatchEvent = useCallback(
     async (event: BrainEvent) => {
       setIsTyping(true);
 
-      const result = processSendMoney(smState, smContext, event, MOCK_CONTACTS);
+      // ── Call server API ──────────────────────────────────────────────────────
+      let result: ChatResponse;
+      try {
+        const reqBody: ChatRequest = {
+          eventType: event.type as ChatRequest["eventType"],
+          eventPayload: eventToPayload(event),
+          state: smState,
+          context: smContext,
+          history: history.slice(-6),
+        };
+        const resp = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(reqBody),
+        });
+        if (!resp.ok) {
+          throw new Error(`API responded ${resp.status}`);
+        }
+        result = (await resp.json()) as ChatResponse;
+      } catch (err) {
+        // Network / server error — fall back to local deterministic brain
+        console.warn("[wio/chat] API unavailable, using local brain:", err);
+        const local = processSendMoney(smState, smContext, event, MOCK_CONTACTS);
+        result = { ...local, action: "reply_only", usedFallback: true, model: "local" };
+      }
 
       await sleep(result.delayMs);
 
       setSmState(result.nextState);
       setSmContext(result.context);
+      setLastModel(result.model);
+      setLastFallback(result.usedFallback);
       setIsTyping(false);
+
+      // Update conversation history for USER_TEXT events
+      if (event.type === "USER_TEXT") {
+        const aiText = result.messages
+          .filter((m) => m.text)
+          .map((m) => m.text!)
+          .join(" ");
+        setHistory((prev) => [
+          ...prev.slice(-10),
+          { role: "user" as const, content: event.text },
+          ...(aiText ? [{ role: "assistant" as const, content: aiText }] : []),
+        ]);
+      }
 
       const newMsgs = brainMessagesToUI(result.messages);
       setMessages((prev) => {
@@ -109,7 +165,7 @@ export default function ChatPage() {
         setSmContext(EMPTY_CONTEXT);
       }
     },
-    [smState, smContext],
+    [smState, smContext, history],
   );
 
   // ── User sends a text message ─────────────────────────────────────────────────
@@ -267,9 +323,11 @@ export default function ChatPage() {
       {process.env.NODE_ENV === "development" && (
         <div className="shrink-0 bg-slate-800 text-slate-200 text-xs px-4 py-1 font-mono flex gap-4 overflow-x-auto">
           <span>state: <strong className="text-green-400">{smState}</strong></span>
-          {smContext.amount && <span>amount: <strong>{smContext.amount.formatted}</strong></span>}
+          {smContext.amount && <span>amt: <strong>{smContext.amount.formatted}</strong></span>}
           {smContext.resolvedContact && <span>to: <strong>{smContext.resolvedContact.name}</strong></span>}
           {smContext.purposeCode && <span>purpose: <strong>{smContext.purposeCode}</strong></span>}
+          <span>model: <strong className="text-yellow-400">{lastModel}</strong></span>
+          {lastFallback && <span className="text-red-400">⚠ fallback</span>}
         </div>
       )}
 
