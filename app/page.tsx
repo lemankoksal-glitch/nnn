@@ -26,6 +26,12 @@ export default function HomePage() {
           >
             Payment Ops Centre →
           </Link>
+          <Link
+            href="/tracker"
+            className="inline-flex items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-6 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            Transfer Tracker →
+          </Link>
         </div>
         <p className="text-xs text-muted-foreground pt-4">
           All data is mocked — no live API connections yet.

@@ -120,6 +120,33 @@ Handles:
 
 ---
 
+## Phase 5 — International Transfer Tracker ✅
+
+**Status:** Complete  
+**Route:** `/tracker`
+
+### What was built
+
+| Component | Description |
+|---|---|
+| `TrackerTopBar` | Sticky header — recipient name, amount, transfer ref, status badge (On Hold / Under Review / Processing / Delivered), back-to-home nav |
+| `AmberAlertBanner` | Context-aware banner: amber (awaiting docs) → blue (docs submitted / processing) → green (delivered) |
+| `StepTracker` | Vertical 4-step timeline: Initiated ✓ → Compliance Review 🔄 → Bank Processing → Delivered. Active step has animated dot; completed steps have teal checkmark |
+| `AssistantBlock` | Human-tone explanation paragraph from Wio that updates with each phase change |
+| `DocumentUploadPicker` | Two required doc slots (Source of Funds + Purpose of Transfer). Clicking "Choose file" triggers mock upload with animated progress bar. Submit button enables when both are uploaded |
+| `TrackerQuickActions` | Expandable accordion with 3 questions: Why is it paused? / When will it arrive? / Can I cancel? |
+| Transfer details card | Read-only summary: recipient, IBAN, amount, reference, initiated time, hold reason |
+
+### Phase progression (all mocked with setTimeout)
+
+```
+awaiting_docs → [submit docs] → docs_submitted (3s) → processing (4s) → delivered
+```
+
+All UI (banner, step tracker, assistant message, top-bar badge) updates in sync with each phase transition.
+
+---
+
 ## Testing the flows
 
 Start the dev server:
@@ -143,6 +170,7 @@ npm run dev
 | Freeze card | "Freeze my card" |
 | Thanks | "Thank you" |
 | Held transfer | Use **Release** or **Cancel Transfer** in the proactive bar |
+| Transfer tracker | Go to `/tracker` → upload both docs → watch phase progress |
 
 ---
 
@@ -152,13 +180,15 @@ npm run dev
 app/
   chat/page.tsx        Customer chat UI
   ops/page.tsx         Payment Ops Centre (Phase 4)
+  tracker/page.tsx     International Transfer Tracker (Phase 5)
   layout.tsx
   page.tsx             Landing
 
 components/
   cards/               9 card components
   chat/                5 chat components (+ ProactiveAlertsSection)
-  ops/                 Ops dashboard components (Phase 4)
+  ops/                 7 ops dashboard components (Phase 4)
+  tracker/             6 tracker components (Phase 5)
   ui/                  5 primitives
 
 lib/
