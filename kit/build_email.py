@@ -181,4 +181,4 @@ def build():
     return html
 
 if __name__ == "__main__":
-    h = build(); open("/home/claude/night-edit/v7/night-edit-sample.html", "w").write(h); print(len(h))
+    h = build(); import sys; open(sys.argv[1] if len(sys.argv) > 1 else "edition.html", "w").write(h); print(len(h))

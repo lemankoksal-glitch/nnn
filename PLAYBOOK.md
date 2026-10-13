@@ -30,7 +30,11 @@ Make 6 images: hero (two figures, empty upper-middle for the title), 3 stories, 
 4. Commit the GIFs to `night-edit/YYYY-MM-DD/` on this branch and push. Image URL: `https://cdn.jsdelivr.net/gh/lemankoksal-glitch/nnn@<commit>/night-edit/YYYY-MM-DD/<name>.gif` (always pin the commit hash).
 **If the Mac is unreachable**, skip the animation and use the Figma PNG URLs directly. They stay public for 7 days, which is fine for a nightly email.
 
-## Build & send
-1. Copy `kit/build_email.py`, then replace STORIES, the signals text, the intro, IMG, the issue number and the date. Mailto votes go to lemankoksal@gmail.com with the subjects above.
-2. Minify the HTML, then use `mcp__Gmail__send_message` to send it to ryatmiri@gmail.com, bcc lemankoksal@gmail.com. Subject: "The Night Edit · N° <n> — <story 1 headline>". Include a short plain-text `body` too.
-3. Increment the issue number in `prefs.json`.
+## Build, publish & send
+The Gmail connector deletes every image (any `<img>`, CSS background image, `background` attribute, svg), every `<style>` block and every class. So **never send the full edition HTML through Gmail.** The full design lives on a web page (GitHub Pages), and the email is a styled teaser that links to it.
+
+1. **Full edition page.** Copy `kit/build_email.py` to `/home/claude/ed/build_email.py`, then replace STORIES, the signals text, the intro, IMG, the issue number (every "N°0" / "N° 0") and the date. Mailto votes go to lemankoksal@gmail.com with the subjects above. Run `python3 /home/claude/ed/build_email.py night-edit/YYYY-MM-DD/index.html`.
+2. Commit and push. The page goes live at `https://lemankoksal-glitch.github.io/nnn/night-edit/YYYY-MM-DD/` within about a minute. Check it with WebFetch: it should return the edition's headlines, not a 404. If it's still 404 after about 5 minutes, check that `night-edit/2026-10-12/` loads. If that one fails too, Pages is off: email Leman instead of Rya.
+3. **Teaser email.** Run `python3 kit/build_teaser.py /home/claude/ed/build_email.py <page URL> <issue> "DD.MM.YYYY" "<Sanskrit day>" "<planet hex>" teaser.html "<intro text>"`. Its intro uses the same tone as the page intro, and the hero colour follows the night's planet.
+4. Send `teaser.html` as `htmlBody` with `mcp__Gmail__send_message` to ryatmiri@gmail.com, bcc lemankoksal@gmail.com. Subject: "The Night Edit · N° <n> — <story 1 headline>". Include a short plain-text `body` with the page link too.
+5. Increment the issue number in `prefs.json`, then commit and push.
